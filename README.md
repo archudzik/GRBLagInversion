@@ -8,8 +8,8 @@ We demonstrate that the population of GRB spectral lags splits exactly in half: 
 
 ## Key Findings
 
-| Dataset   | Total Events | Positive Lags | Negative Lags | Median | τ      |     | Characteristic τ |
-| --------- | ------------ | ------------- | ------------- | ------ | ------ | --- | ---------------- |
+| Dataset   | Total Events | Positive Lags | Negative Lags | Median | τ      |
+| --------- | ------------ | ------------- | ------------- | ------ | ------ |
 | Fermi GBM | 1,955        | 969 (49.6%)   | 986 (50.4%)   | 19.6 s | 27.1 s |
 | Swift BAT | 202          | 114 (56.4%)   | 88 (43.6%)    | 7.4 s  | 32.2 s |
 
