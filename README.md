@@ -4,14 +4,14 @@ This project implements the analysis pipeline for studying spectral lags in gamm
 
 ## Overview
 
-We demonstrate that the population of GRB spectral lags splits exactly in half: 49.6% positive versus 50.4% negative. This "coin flip" distribution, combined with complete spatial isotropy and identical exponential magnitude distributions, systematically excludes all geometric viewing-angle models and points to an intrinsic mechanism involving random magnetic polarity in nascent neutron star magnetospheres.
+The population of GRB spectral lags splits exactly in half: 49.6% positive versus 50.4% negative. This "coin flip" distribution, combined with complete spatial isotropy and identical exponential magnitude distributions, systematically excludes all geometric viewing-angle models and points to an intrinsic mechanism involving random magnetic polarity in nascent neutron star magnetospheres.
 
 ## Key Findings
 
 | Dataset   | Total Events | Positive Lags | Negative Lags | Median | τ      |
 | --------- | ------------ | ------------- | ------------- | ------ | ------ |
 | Fermi GBM | 1,955        | 969 (49.6%)   | 986 (50.4%)   | 19.6 s | 27.1 s |
-| Swift BAT | 202          | 114 (56.4%)   | 88 (43.6%)    | 7.4 s  | 32.2 s |
+| Swift BAT | 202          | 114 (56.4%)   | 88 (43.6%)    | 8.0 s  | 32.2 s |
 
 ### Spatial Isotropy Tests
 
@@ -25,14 +25,14 @@ All tests are consistent with complete spatial isotropy (no preferred direction)
 
 ### Parameter Inversion Results
 
-| Parameter       | Fermi GBM        | Swift BAT        |
-| --------------- | ---------------- | ---------------- |
-| Spin Period     | 2819 ± 2591 ms   | 2502 ± 3440 ms   |
-| Torus Radius    | 21.4 ± 15.5 r_LC | 19.0 ± 17.1 r_LC |
-| Escape Windings | 3.97 ± 2.99      | 3.92 ± 3.33      |
-| Success Rate    | 97.4%            | 81.2%            |
+| Parameter       | Fermi GBM       | Swift BAT       |
+| --------------- | --------------- | --------------- |
+| Spin Period     | 1666 ± 2293 ms  | 1048 ± 2254 ms  |
+| Torus Radius    | 7.6 ± 11.2 r_LC | 7.2 ± 11.0 r_LC |
+| Escape Windings | 1.59 ± 2.21     | 1.18 ± 2.47     |
+| Success Rate    | 95.7%           | 83.7%           |
 
-The recovered parameters are consistent with nascent neutron stars that have spun down from initial millisecond periods to 2–4 seconds during the prompt GRB emission phase.
+The recovered parameters are consistent with nascent neutron stars that have spun down from initial millisecond periods to 1-2 seconds during the prompt GRB emission phase.
 
 ## Physical Model
 
@@ -41,31 +41,43 @@ The magnetospheric wind model proposes that spectral lags originate from energy-
 1. **50/50 Sign Split**: Random magnetic polarity (μ·L ≷ 0) from stochastic dynamo processes
 2. **Spatial Isotropy**: Random progenitor stellar orientations
 3. **Exponential Distribution**: Stochastic winding number from diffusive photon escape
-4. **~27s Timescale**: Propagation through ~20 r_LC torus with ~4 field-line windings
+4. **~27s Timescale**: Propagation through ~7 r_LC torus with ~1-2 field-line windings
+
+The delay formula follows from magnetospheric geometry:
+
+```
+Δt = N_esc × 2πr_torus / c
+```
+
+where `r_torus` is measured in units of the light cylinder radius `r_LC = cP/(2π)`.
 
 ## Project Structure
 
 ```
+
 .
-├── run_analysis.py                           # Complete spatial and statistical analysis
-├── run_parameter_inversion.py                # Magnetospheric parameter fitting
-├── fermi_full_data.csv                       # Fermi GBM spectral lag measurements (1,955 events)
-├── swift_full_data.csv                       # Swift BAT spectral lag measurements (202 events)
+├── run_analysis.py # Complete spatial and statistical analysis
+├── run_parameter_inversion.py # Magnetospheric parameter fitting
+├── fermi_full_data.csv # Fermi GBM spectral lag measurements (1,955 events)
+├── swift_full_data.csv # Swift BAT spectral lag measurements (202 events)
 ├── figures/
-│   ├── figures_fig_fermi_lag_distributions.png    # Fermi lag histograms
-│   ├── figures_fig_swift_lag_distributions.png    # Swift lag histograms
-│   ├── figures_fig_fermi_swift_comparison.png     # Multi-instrument sky maps
-│   ├── figures_fermi_population_optimized.png     # Fermi parameter inversion
-│   └── figures_swift_population_optimized.png     # Swift parameter inversion
-├── paper.pdf                                 # Full manuscript
-└── README.md                                 # This file
+│ ├── fig_fermi_lag_distributions.png # Fermi lag histograms
+│ ├── fig_swift_lag_distributions.png # Swift lag histograms
+│ ├── fig_fermi_swift_comparison.png # Multi-instrument sky maps
+│ ├── fermi_population_optimized.png # Fermi parameter inversion
+│ └── swift_population_optimized.png # Swift parameter inversion
+├── paper.tex # LaTeX manuscript source
+├── paper.pdf # Compiled manuscript
+├── references.bib # Bibliography
+└── README.md # This file
+
 ```
 
 ## Installation
 
 Requires Python ≥ 3.8. Install dependencies:
 
-```bash
+```
 pip install numpy scipy pandas matplotlib
 ```
 
@@ -112,7 +124,7 @@ The CSV data files contain:
 
 The rotating magnetosphere model makes several predictions:
 
-1. **Quasi-periodic oscillations**: ~1 kHz → ~0.3 Hz decay during burst
+1. **Quasi-periodic oscillations**: ~1 kHz → ~1 Hz frequency evolution during burst
 2. **High linear polarization**: ~70% from synchrotron emission
 3. **Lag-luminosity correlation**: From plasma density dependence
 4. **Long/short GRB differences**: Different progenitor physics
