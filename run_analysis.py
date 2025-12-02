@@ -394,7 +394,7 @@ class SampleStatistics:
 
         try:
             shape, loc, scale = stats.expon.fit(positive_values, floc=0)
-        except:
+        except Exception:
             return {'distribution_name': distribution_name, 'fit_failed': True}
 
         ks_stat, ks_pval = stats.kstest(
@@ -920,38 +920,6 @@ class GRBStudy:
             'avg_half_life': avg_half_life,
             'tau_obs': avg_scale/1000
         }
-
-    def winding_calculator(self, tau_obs, T_burst=30.0, c=3e10):
-        """
-        Enhanced magnetospheric lag calculator with optimization.
-        Given observed lag, finds best-fit star parameters via minimization.
-        """
-        from scipy.optimize import minimize
-
-        # Physical constants
-        sigma_T = 6.65e-25  # Thomson cross-section (cm^2)
-        m_e_c2 = 511.0      # electron rest mass energy (keV)
-
-        # Energy bands
-        E_soft = 30.0   # keV
-        E_hard = 300.0  # keV
-
-        # Scattering cross-sections (Klein-Nishina correction)
-        def klein_nishina(E_keV):
-            x = E_keV / m_e_c2
-            return sigma_T / (1 + x)
-
-        sigma_soft = klein_nishina(E_soft)
-        sigma_hard = klein_nishina(E_hard)
-
-        print("\n" + "="*70)
-        print("MAGNETOSPHERIC LAG CALCULATOR (OPTIMIZATION)")
-        print("="*70)
-        print(f"\nINPUT:")
-        print(f"  Observed lag:              τ_obs = {tau_obs:.2f} s")
-        print(f"  Burst duration:            T_burst = {T_burst:.1f} s")
-        print(f"  Soft band:                 E_soft = {E_soft:.0f} keV")
-        print(f"  Hard band:                 E_hard = {E_hard:.0f} keV")
 
     def winding_calculator(self, tau_obs, T_burst=30.0, c=3e10):
         """Simple grid search for magnetosphere parameters."""

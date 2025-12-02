@@ -22,7 +22,7 @@ class PhysicalConstants:
 class InversionResult:
     spin_period_ms: float
     torus_radius_units: float
-    escape_fraction: float
+    n_windings: float
     error: float
     lag_model_ms: float
     lag_observed_ms: float
@@ -37,40 +37,54 @@ class PopulationStatistics:
     spin_period_std: float
     torus_radius_median: float
     torus_radius_std: float
-    escape_fraction_median: float
-    escape_fraction_std: float
+    n_windings_median: float
+    n_windings_std: float
     mean_error: float
 
 
 class MagnetosphericPhysics:
+    """
+    Magnetospheric wind model for GRB spectral lag.
+    
+    Photons scatter through wound magnetic field structures surrounding
+    nascent neutron stars. Delay arises from N windings through toroidal
+    field at radius r_torus. See Eq. 12 in paper.
+    """
+    
     def __init__(self):
         self.constants = PhysicalConstants()
 
     def compute_light_cylinder_radius(self, spin_period_ms: float) -> float:
+        """r_LC = c * P / (2π) — radius where corotation velocity equals c"""
         spin_period_s = spin_period_ms * 1e-3
         return self.constants.SPEED_OF_LIGHT_CM_S * spin_period_s / (2 * np.pi)
 
-    def compute_propagation_time(self, torus_radius_cm: float) -> float:
-        return torus_radius_cm / self.constants.SPEED_OF_LIGHT_CM_S
-
-    def compute_rotation_time(self, spin_period_ms: float, escape_fraction: float) -> float:
-        spin_period_s = spin_period_ms * 1e-3
-        return escape_fraction * spin_period_s
+    def compute_winding_delay(self, torus_radius_cm: float, n_windings: float) -> float:
+        """Δt = N × 2πr_torus / c — time for N windings through toroidal field"""
+        circumference = 2 * np.pi * torus_radius_cm
+        return n_windings * circumference / self.constants.SPEED_OF_LIGHT_CM_S
 
     def compute_total_lag_ms(
         self,
         spin_period_ms: float,
         torus_radius_units: float,
-        escape_fraction: float
+        n_windings: float
     ) -> float:
-        light_cylinder_radius = self.compute_light_cylinder_radius(
-            spin_period_ms)
-        torus_radius_cm = torus_radius_units * light_cylinder_radius
-        propagation_time = self.compute_propagation_time(torus_radius_cm)
-        rotation_time = self.compute_rotation_time(
-            spin_period_ms, escape_fraction)
-        total_lag_s = propagation_time + rotation_time
-        return total_lag_s * 1e3
+        """
+        Total spectral lag from magnetospheric scattering.
+        
+        Parameters:
+            spin_period_ms: Neutron star rotation period [ms]
+            torus_radius_units: Torus radius in units of r_LC
+            n_windings: Number of field-line windings before escape (N_esc)
+        
+        Returns:
+            Spectral lag [ms]
+        """
+        r_LC = self.compute_light_cylinder_radius(spin_period_ms)
+        r_torus_cm = torus_radius_units * r_LC
+        delay_s = self.compute_winding_delay(r_torus_cm, n_windings)
+        return delay_s * 1e3
 
 
 class ParameterBounds:
@@ -78,24 +92,24 @@ class ParameterBounds:
         self,
         spin_period_range: Tuple[float, float] = (0.5, 10000),
         torus_radius_range: Tuple[float, float] = (1, 50),
-        escape_fraction_range: Tuple[float, float] = (0, 10)
+        n_windings_range: Tuple[float, float] = (0, 10)
     ):
         self.spin_period_range = spin_period_range
         self.torus_radius_range = torus_radius_range
-        self.escape_fraction_range = escape_fraction_range
+        self.n_windings_range = n_windings_range
 
     def as_list(self) -> List[Tuple[float, float]]:
         return [
             self.spin_period_range,
             self.torus_radius_range,
-            self.escape_fraction_range
+            self.n_windings_range
         ]
 
     def generate_random_initial_guess(self) -> np.ndarray:
         return np.array([
             np.random.uniform(*self.spin_period_range),
             np.random.uniform(*self.torus_radius_range),
-            np.random.uniform(*self.escape_fraction_range)
+            np.random.uniform(*self.n_windings_range)
         ])
 
 
@@ -105,9 +119,9 @@ class ObjectiveFunction:
         self.observed_lag_ms = observed_lag_ms
 
     def __call__(self, params: np.ndarray) -> float:
-        spin_period_ms, torus_radius_units, escape_fraction = params
+        spin_period_ms, torus_radius_units, n_windings = params
         model_lag = self.physics.compute_total_lag_ms(
-            spin_period_ms, torus_radius_units, escape_fraction
+            spin_period_ms, torus_radius_units, n_windings
         )
         return (model_lag - self.observed_lag_ms) ** 2
 
@@ -153,8 +167,8 @@ class LocalOptimizer:
         return self._create_result(best_result.x, best_result.fun, observed_lag_ms)
 
     def _is_physically_reasonable(self, params: np.ndarray) -> bool:
-        escape_fraction = params[2]
-        return 0 <= escape_fraction <= 10
+        n_windings = params[2]
+        return 0 <= n_windings <= 10
 
     def _create_result(
         self,
@@ -162,14 +176,14 @@ class LocalOptimizer:
         error: float,
         observed_lag_ms: float
     ) -> InversionResult:
-        spin_period_ms, torus_radius_units, escape_fraction = params
+        spin_period_ms, torus_radius_units, n_windings = params
         return InversionResult(
             spin_period_ms=spin_period_ms,
             torus_radius_units=torus_radius_units,
-            escape_fraction=escape_fraction,
+            n_windings=n_windings,
             error=error,
             lag_model_ms=self.physics.compute_total_lag_ms(
-                spin_period_ms, torus_radius_units, escape_fraction
+                spin_period_ms, torus_radius_units, n_windings
             ),
             lag_observed_ms=observed_lag_ms
         )
@@ -214,8 +228,8 @@ class GlobalOptimizer:
         return self._create_result(result.x, result.fun, observed_lag_ms)
 
     def _is_physically_reasonable(self, params: np.ndarray) -> bool:
-        escape_fraction = params[2]
-        return 0 <= escape_fraction <= 10
+        n_windings = params[2]
+        return 0 <= n_windings <= 10
 
     def _create_result(
         self,
@@ -223,14 +237,14 @@ class GlobalOptimizer:
         error: float,
         observed_lag_ms: float
     ) -> InversionResult:
-        spin_period_ms, torus_radius_units, escape_fraction = params
+        spin_period_ms, torus_radius_units, n_windings = params
         return InversionResult(
             spin_period_ms=spin_period_ms,
             torus_radius_units=torus_radius_units,
-            escape_fraction=escape_fraction,
+            n_windings=n_windings,
             error=error,
             lag_model_ms=self.physics.compute_total_lag_ms(
-                spin_period_ms, torus_radius_units, escape_fraction
+                spin_period_ms, torus_radius_units, n_windings
             ),
             lag_observed_ms=observed_lag_ms
         )
@@ -304,8 +318,8 @@ class PopulationAnalyzer:
             spin_period_std=df_solutions['spin_period_ms'].std(),
             torus_radius_median=df_solutions['torus_radius_units'].median(),
             torus_radius_std=df_solutions['torus_radius_units'].std(),
-            escape_fraction_median=df_solutions['escape_fraction'].median(),
-            escape_fraction_std=df_solutions['escape_fraction'].std(),
+            n_windings_median=df_solutions['n_windings'].median(),
+            n_windings_std=df_solutions['n_windings'].std(),
             mean_error=df_solutions['error'].mean()
         )
 
@@ -316,7 +330,7 @@ class PopulationAnalyzer:
             {
                 'spin_period_ms': s.spin_period_ms,
                 'torus_radius_units': s.torus_radius_units,
-                'escape_fraction': s.escape_fraction,
+                'n_windings': s.n_windings,
                 'error': s.error,
                 'lag_model_ms': s.lag_model_ms,
                 'lag_observed_ms': s.lag_observed_ms
@@ -339,7 +353,7 @@ class PopulationPlotter:
 
         self._plot_spin_period_distribution(axes[0, 0])
         self._plot_torus_radius_distribution(axes[0, 1])
-        self._plot_escape_fraction_distribution(axes[1, 0])
+        self._plot_n_windings_distribution(axes[1, 0])
         self._plot_fit_quality(axes[1, 1])
 
         plt.tight_layout()
@@ -392,24 +406,24 @@ class PopulationPlotter:
         ax.legend()
         ax.grid(alpha=0.3)
 
-    def _plot_escape_fraction_distribution(self, ax):
+    def _plot_n_windings_distribution(self, ax):
         ax.hist(
-            self.df['escape_fraction'],
+            self.df['n_windings'],
             bins=30,
             alpha=0.7,
             color='orange',
             edgecolor='black'
         )
-        median_value = self.df['escape_fraction'].median()
+        median_value = self.df['n_windings'].median()
         ax.axvline(
             median_value,
             color='red',
             linestyle='--',
             label=f'Median: {median_value:.2f}'
         )
-        ax.set_xlabel('N_esc / N_rot', fontsize=11)
+        ax.set_xlabel('N_esc (windings)', fontsize=11)
         ax.set_ylabel('Count', fontsize=11)
-        ax.set_title('Wind Escape Fraction', fontsize=12)
+        ax.set_title('Escape Windings', fontsize=12)
         ax.legend()
         ax.grid(alpha=0.3)
 
@@ -488,7 +502,7 @@ class ParameterInversionStudy:
         print(
             f"  Torus scale: {self.statistics.torus_radius_median:.1f} ± {self.statistics.torus_radius_std:.1f} r_LC")
         print(
-            f"  Escape fraction: {self.statistics.escape_fraction_median:.2f} ± {self.statistics.escape_fraction_std:.2f}")
+            f"  Escape fraction: {self.statistics.n_windings_median:.2f} ± {self.statistics.n_windings_std:.2f}")
         print(f"  Mean fit error: {self.statistics.mean_error:.2e}")
 
 
